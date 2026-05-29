@@ -5,36 +5,38 @@ from datetime import date
 # 1. RUTAS DE ARCHIVOS Y DIRECTORIOS
 # =========================================================================
 RUTA_ZIPCODE = '/home/emanuel/DataSinteticaImss/data/zipcode.xls'
-DIR_OUTPUT = '/home/emanuel/DataSinteticaImss/output'
-SALIDA_CSV = f'{DIR_OUTPUT}/pacientes_sinteticos_cdmx.csv'
-SALIDA_XLSX = f'{DIR_OUTPUT}/pacientes_sinteticos_cdmx.xlsx'
+DIR_OUTPUT   = '/home/emanuel/DataSinteticaImss/output'
+SALIDA_CSV   = f'{DIR_OUTPUT}/pacientes_sinteticos_cdmx.csv'
+SALIDA_XLSX  = f'{DIR_OUTPUT}/pacientes_sinteticos_cdmx.xlsx'
 
 # =========================================================================
 # 2. CONFIGURACIÓN GENERAL DE LA SIMULACIÓN
 # =========================================================================
-SEED = 42
+SEED        = 42
 N_PACIENTES = 10_000
 
 # =========================================================================
 # 3. PARÁMETROS DEMOGRÁFICOS Y DE POBLACIÓN
 # =========================================================================
-EDAD_MINIMA = 30
-EDAD_MAXIMA = 75
-PROB_SEGUNDO_APELLIDO = 0.92  
+EDAD_MINIMA          = 30
+EDAD_MAXIMA          = 75
+PROB_SEGUNDO_APELLIDO = 0.92
 
+# Fuente: Censo de Población y Vivienda 2020, INEGI.
+# Total CDMX: 9,209,944 habitantes — Mujeres: 52.2% | Hombres: 47.8%
 PESOS_SEXO = {
-    'Masculino': 0.48, 
-    'Femenino': 0.49, 
-    'Otro': 0.02, 
+    'Masculino':   0.478,
+    'Femenino':    0.522,
+    'Otro':        0.02,
     'Desconocido': 0.01
 }
 
 # =========================================================================
 # 4. PARÁMETROS ANTROPOMÉTRICOS Y PROBABILIDADES (INEGI / ENSANUT)
 # =========================================================================
-ALTURA_MEDIA_MASCULINO = 170.0  
-ALTURA_MEDIA_FEMENINO = 158.0   
-ALTURA_DESVIACION = 6.0  
+ALTURA_MEDIA_MASCULINO = 170.0
+ALTURA_MEDIA_FEMENINO  = 158.0
+ALTURA_DESVIACION      = 6.0
 
 ESTADISTICAS_INEGI = {
     'Adultos_30_59': {
