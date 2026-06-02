@@ -13,12 +13,12 @@ SALIDA_XLSX  = f'{DIR_OUTPUT}/pacientes_sinteticos_cdmx.xlsx'
 # 2. CONFIGURACIÓN GENERAL DE LA SIMULACIÓN
 # =========================================================================
 SEED        = 42
-N_PACIENTES = 10_000
+N_PACIENTES = 10000
 
 # =========================================================================
 # 3. PARÁMETROS DEMOGRÁFICOS Y DE POBLACIÓN
 # =========================================================================
-EDAD_MINIMA          = 30
+EDAD_MINIMA          = 18
 EDAD_MAXIMA          = 75
 PROB_SEGUNDO_APELLIDO = 0.92
 
