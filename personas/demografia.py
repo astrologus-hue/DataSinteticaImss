@@ -3,7 +3,6 @@ import random
 import sys
 import os
 
-# Asegurar herencia de rutas en caso de pruebas unitarias locales sueltas
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 import config as config
 

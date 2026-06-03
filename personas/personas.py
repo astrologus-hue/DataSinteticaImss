@@ -3,17 +3,21 @@ import os
 import sys
 import random
 import unicodedata
-from datetime import date
+from datetime import date, timedelta
 import pandas as pd
 from faker import Faker
 
-# --- PARCHE DE RUTAS PARA SUB-CARPETA ---
-# Añade la carpeta raíz (..) al entorno de búsqueda de Python para encontrar config.py
+# --- PARCHE DE RUTAS ---
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 import config as config
-from personas import talla, demografia
 
-# --- CARGA Y LIMPIEZA DE ARCHIVO DE CÓDIGOS POSTALES ---
+import talla
+import demografia
+import edad
+import enfermedades
+
+# --- CARGA CATÁLOGO SEPOMEX ---
 if config.RUTA_ZIPCODE.endswith('.csv'):
     zipcode = pd.read_csv(
         config.RUTA_ZIPCODE,
@@ -26,15 +30,14 @@ if config.RUTA_ZIPCODE.endswith('.csv'):
 else:
     zipcode = pd.read_excel(config.RUTA_ZIPCODE, dtype=str)
 
-print(f'Total filas catálogo SEPOMEX: {len(zipcode):,}')
+print(f'  [personas] Total filas catálogo SEPOMEX: {len(zipcode):,}')
 
-zipcode_cdmx = zipcode[zipcode['c_estado'] == '09'].copy()
+zipcode_cdmx   = zipcode[zipcode['c_estado'] == '09'].copy()
 zipcode_cdmx['cp'] = zipcode_cdmx['cp'].astype(str).str.zfill(5)
-
-pool_geo = zipcode_cdmx[['cp', 'd_asenta', 'municipio', 'd_ciudad']].drop_duplicates().reset_index(drop=True)
+pool_geo       = zipcode_cdmx[['cp', 'd_asenta', 'municipio', 'd_ciudad']].drop_duplicates().reset_index(drop=True)
 pool_registros = pool_geo.to_dict(orient='records')
 
-# --- LÓGICA DE CONTROL (CURP Y NSS) ---
+# --- LÓGICA CURP Y NSS ---
 CLAVE_CURP_CDMX = 'DF'
 CONSONANTES = 'BCDFGHJKLMNPQRSTVWXYZ'
 VOCALES     = 'AEIOU'
@@ -48,15 +51,13 @@ def normaliza(texto):
     return s.upper()
 
 def primera_consonante_interna(palabra):
-    palabra = normaliza(palabra)
-    for c in palabra[1:]:
+    for c in normaliza(palabra)[1:]:
         if c in CONSONANTES:
             return c
     return 'X'
 
 def primera_vocal_interna(palabra):
-    palabra = normaliza(palabra)
-    for c in palabra[1:]:
+    for c in normaliza(palabra)[1:]:
         if c in VOCALES:
             return c
     return 'X'
@@ -85,12 +86,12 @@ def generar_curp_sintetico(nombre, primer_ap, segundo_ap, fecha_nac, sexo):
     if (l1 + l2 + l3 + l4) in ALTISONANTES:
         l2 = 'X'
 
-    fecha_str   = fecha_nac.strftime('%y%m%d')
-    sexo_letra  = {'Masculino': 'H', 'Femenino': 'M'}.get(sexo, 'X')
+    fecha_str  = fecha_nac.strftime('%y%m%d')
+    sexo_letra = {'Masculino': 'H', 'Femenino': 'M'}.get(sexo, 'X')
 
-    c1 = primera_consonante_interna(p_ap) if p_ap else 'X'
-    c2 = primera_consonante_interna(s_ap) if s_ap else 'X'
-    c3 = primera_consonante_interna(nom)  if nom  else 'X'
+    c1 = primera_consonante_interna(p_ap)
+    c2 = primera_consonante_interna(s_ap)
+    c3 = primera_consonante_interna(nom)
 
     homoclave   = random.choice('0123456789') if fecha_nac.year < 2000 else random.choice(ALFABETO)
     verificador = random.choice('0123456789')
@@ -100,7 +101,7 @@ def generar_curp_sintetico(nombre, primer_ap, segundo_ap, fecha_nac, sexo):
 def generar_nss():
     return ''.join(random.choices('0123456789', k=11))
 
-# --- CONFIGURACIÓN DE ENTORNOS ALEATORIOS ---
+# --- GENERACIÓN ---
 random.seed(config.SEED)
 Faker.seed(config.SEED)
 
@@ -110,7 +111,7 @@ HOY  = date.today()
 pacientes  = []
 nss_usados = set()
 
-print(f'Generando {config.N_PACIENTES:,} registros sintéticos con reglas INEGI / ENSANUT...')
+print(f'  [personas] Generando {config.N_PACIENTES:,} registros sintéticos (rango {config.EDAD_MINIMA}-{config.EDAD_MAXIMA} años)...')
 
 while len(pacientes) < config.N_PACIENTES:
     nss = generar_nss()
@@ -118,7 +119,6 @@ while len(pacientes) < config.N_PACIENTES:
         continue
     nss_usados.add(nss)
 
-    # Sexo asignado con pesos reales del Censo CDMX 2020 (52.2% F / 47.8% M)
     sexo = demografia.asignar_sexo()
 
     if sexo == 'Masculino':
@@ -131,13 +131,20 @@ while len(pacientes) < config.N_PACIENTES:
     primer_apellido  = fake.last_name()
     segundo_apellido = fake.last_name() if random.random() < config.PROB_SEGUNDO_APELLIDO else None
 
-    fecha_nac = fake.date_of_birth(minimum_age=config.EDAD_MINIMA, maximum_age=config.EDAD_MAXIMA)
-    edad      = (HOY - fecha_nac).days // 365
+    edad_anos = edad.asignar_edad(sexo)
+    fecha_nac = HOY.replace(year=HOY.year - edad_anos) - timedelta(days=random.randint(0, 364))
+    edad_val  = (HOY - fecha_nac).days // 365
 
-    estatura_cm, imc, peso, estado_nutricional = talla.calcular_antropometria(sexo, edad)
+    estatura_cm, imc, peso, estado_nutricional, actividad_fisica = \
+        talla.calcular_antropometria(sexo, edad_val)
+
+    # Enfermedades crónicas con comorbilidades
+    enfs = enfermedades.asignar_enfermedades(edad_val, sexo, estado_nutricional, actividad_fisica)
 
     geo  = random.choice(pool_registros)
-    curp = generar_curp_sintetico(nombre, primer_apellido, segundo_apellido or '', fecha_nac, sexo)
+    curp = generar_curp_sintetico(
+        nombre, primer_apellido, segundo_apellido or '', fecha_nac, sexo
+    )
 
     pacientes.append({
         'nss':                nss,
@@ -146,12 +153,15 @@ while len(pacientes) < config.N_PACIENTES:
         'primer_apellido':    primer_apellido,
         'segundo_apellido':   segundo_apellido,
         'fecha_nacimiento':   fecha_nac.strftime('%d/%m/%Y'),
-        'edad':               edad,
+        'edad':               edad_val,
         'sexo':               sexo,
+        'actividad_fisica':   actividad_fisica,
         'estatura_cm':        estatura_cm,
         'imc':                imc,
         'peso_kg':            peso,
         'estado_nutricional': estado_nutricional,
+        'diabetes':           enfs['diabetes'],
+        'hipertension':       enfs['hipertension'],
         'entidad_federativa': 'CDMX',
         'municipio':          geo['municipio'],
         'cp':                 geo['cp'],
@@ -159,13 +169,13 @@ while len(pacientes) < config.N_PACIENTES:
         'ciudad':             geo['d_ciudad'],
     })
 
-# --- CONVERSIÓN Y EXPORTACIÓN FINAL ---
+# --- EXPORTACIÓN ---
 df_pacientes = pd.DataFrame(pacientes)
 os.makedirs(config.DIR_OUTPUT, exist_ok=True)
 
-df_pacientes.to_csv(config.SALIDA_CSV,   index=False, encoding='utf-8')
-df_pacientes.to_excel(config.SALIDA_XLSX, index=False)
+df_pacientes.to_csv(config.SALIDA_CSV,    index=False, encoding='utf-8')
+df_pacientes.to_excel(config.SALIDA_XLSX, index=False, engine='xlsxwriter')
 
-print(f'\x1b[32mProceso finalizado con éxito.\x1b[0m')
-print(f'-> Registros guardados en CSV:   {config.SALIDA_CSV}')
-print(f'-> Registros guardados en Excel: {config.SALIDA_XLSX}')
+print(f'\x1b[32m  [personas] Proceso finalizado con éxito.\x1b[0m')
+print(f'  -> CSV:   {config.SALIDA_CSV}')
+print(f'  -> Excel: {config.SALIDA_XLSX}')
