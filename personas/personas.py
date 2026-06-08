@@ -16,6 +16,7 @@ import talla
 import demografia
 import edad
 import enfermedades
+import historia_clinica
 
 # --- CARGA CATÁLOGO SEPOMEX ---
 if config.RUTA_ZIPCODE.endswith('.csv'):
@@ -139,7 +140,14 @@ while len(pacientes) < config.N_PACIENTES:
         talla.calcular_antropometria(sexo, edad_val)
 
     # Enfermedades crónicas con comorbilidades
-    enfs = enfermedades.asignar_enfermedades(edad_val, sexo, estado_nutricional, actividad_fisica)
+    enfs = enfermedades.asignar_enfermedades(
+        edad_val, sexo, estado_nutricional, actividad_fisica
+    )
+
+    # Historia clínica — antecedentes heredofamiliares y no patológicos
+    hc = historia_clinica.generar_historia_clinica(
+        enfs['diabetes'], enfs['hipertension']
+    )
 
     geo  = random.choice(pool_registros)
     curp = generar_curp_sintetico(
@@ -147,26 +155,39 @@ while len(pacientes) < config.N_PACIENTES:
     )
 
     pacientes.append({
-        'nss':                nss,
-        'curp_sintetico':     curp,
-        'nombre':             nombre,
-        'primer_apellido':    primer_apellido,
-        'segundo_apellido':   segundo_apellido,
-        'fecha_nacimiento':   fecha_nac.strftime('%d/%m/%Y'),
-        'edad':               edad_val,
-        'sexo':               sexo,
-        'actividad_fisica':   actividad_fisica,
-        'estatura_cm':        estatura_cm,
-        'imc':                imc,
-        'peso_kg':            peso,
-        'estado_nutricional': estado_nutricional,
-        'diabetes':           enfs['diabetes'],
-        'hipertension':       enfs['hipertension'],
-        'entidad_federativa': 'CDMX',
-        'municipio':          geo['municipio'],
-        'cp':                 geo['cp'],
-        'colonia':            geo['d_asenta'],
-        'ciudad':             geo['d_ciudad'],
+        # --- Identificación ---
+        'nss':                       nss,
+        'curp_sintetico':            curp,
+        'nombre':                    nombre,
+        'primer_apellido':           primer_apellido,
+        'segundo_apellido':          segundo_apellido,
+        'fecha_nacimiento':          fecha_nac.strftime('%d/%m/%Y'),
+        'edad':                      edad_val,
+        'sexo':                      sexo,
+        # --- Antropometría y estilo de vida ---
+        'actividad_fisica':          actividad_fisica,
+        'estatura_cm':               estatura_cm,
+        'imc':                       imc,
+        'peso_kg':                   peso,
+        'estado_nutricional':        estado_nutricional,
+        # --- Enfermedades crónicas ---
+        'diabetes':                  enfs['diabetes'],
+        'hipertension':              enfs['hipertension'],
+        'dislipidemia':              enfs['dislipidemia'],
+        'glucosa_inicial':           enfs['glucosa_inicial'],
+        'hba1c_inicial':             enfs['hba1c_inicial'],
+        'diagnosticado_dm':          enfs['diagnosticado_dm'],
+        # --- Historia clínica ---
+        'antecedente_familiar_dm2':  hc['antecedente_familiar_dm2'],
+        'antecedente_familiar_hta':  hc['antecedente_familiar_hta'],
+        'tabaquismo':                hc['tabaquismo'],
+        'alcoholismo':               hc['alcoholismo'],
+        # --- Geografía ---
+        'entidad_federativa':        'CDMX',
+        'municipio':                 geo['municipio'],
+        'cp':                        geo['cp'],
+        'colonia':                   geo['d_asenta'],
+        'ciudad':                    geo['d_ciudad'],
     })
 
 # --- EXPORTACIÓN ---
